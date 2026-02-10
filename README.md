@@ -2,29 +2,28 @@
 
 Este proyecto es una aplicación web moderna diseñada para automatizar el registro de tus gastos personales y llevar el control de deudas de manera inteligente.
 
-Utiliza un **Bot de Telegram** que recibe fotos de tus comprobantes de transferencia, las procesa con **Inteligencia Artificial (Google Gemini)** para extraer los datos, y los guarda automáticamente en tu base de datos.
+Utiliza un **Bot de Telegram** que recibe fotos de tus comprobantes de transferencia, las procesa con **Inteligencia Artificial (Google Gemini)** para extraer los datos, y los guarda automáticamente en tu base de datos. También acepta comandos de texto para registros manuales.
 
 ## 🚀 Características Principales
 
-*   **🤖 Automatización con IA**: Envía una foto a tu bot y olvídate. La IA detecta el monto, destinatario, banco y fecha.
-*   **👥 Gestión de Deudas**: Crea perfiles para personas que te deben dinero (ej: Rodrigo, Mónica). El sistema asigna los pagos automáticamente basándose en palabras clave.
-*   **📊 Dashboard Financiero**: Visualiza tu deuda total, cuánto has recuperado y cuánto falta por cobrar.
-*   **🌓 Modo Oscuro Automático**: Interfaz limpia y moderna que se adapta a tu sistema.
-*   **📱 Diseño Responsivo**: Funciona perfecto en tu celular y computadora.
+*   **🤖 Automatización con IA**: Envía una foto a tu bot y la IA detecta el monto, destinatario, banco y fecha.
+*   **🗣️ Comandos de Voz/Texto**: Registra pagos o deudas escribiendo (ej: `/pago 5000 Juan`).
+*   **👥 Gestión de Deudas**: Asigna pagos automáticamente basándose en palabras clave.
+*   **🔐 Seguridad Total**: Acceso protegido con **Google Authentication** (solo tu email puede entrar).
+*   **📊 Dashboard Financiero**: Visualiza deuda total, pagado y pendiente.
+*   **🌓 Modo Oscuro/Claro**: Adaptable a tu sistema.
 
 ## 🛠️ Tecnologías
 
 *   **Frontend**: Next.js 14, Tailwind CSS, Shadcn UI.
-*   **Backend**: Server Actions, API Routes.
+*   **Backend**: Server Actions, API Routes, NextAuth.js v5.
 *   **Base de Datos**: PostgreSQL (vía Prisma ORM).
 *   **IA**: Google Gemini 1.5 Flash.
 *   **Integraciones**: Telegram Bot API.
 
 ---
 
-## 💻 Ejecución Local (Desarrollo)
-
-Sigue estos pasos para correr el proyecto en tu computadora:
+## 💻 Configuración Local
 
 ### 1. Clonar y Preparar
 ```bash
@@ -33,57 +32,69 @@ cd contadorPersonal
 npm install
 ```
 
-### 2. Configurar Variables de Entorno
+### 2. Variables de Entorno (.env)
 Crea un archivo `.env` en la raíz con las siguientes claves:
 
 ```env
 # Base de Datos (PostgreSQL)
 DATABASE_URL="postgresql://usuario:password@localhost:5432/mibasededatos"
 
-# Token de tu Bot de Telegram (Obtenido de @BotFather)
-TELEGRAM_BOT_TOKEN="tu_token_aqui"
+# Telegram Bot (De @BotFather)
+TELEGRAM_BOT_TOKEN="tu_token_telegram"
 
-# Clave de API de Google Gemini (Obtenida de Google AI Studio)
-GOOGLE_GENERATIVE_AI_API_KEY="tu_api_key_aqui"
+# IA (De Google AI Studio)
+GOOGLE_GENERATIVE_AI_API_KEY="tu_api_key_gemini"
 
-# URL de tu proyecto (para webhooks locales usa Ngrok)
-verceL_URL="https://tu-url.com" 
+# Autenticación (Google OAuth)
+# Generar secreto: openssl rand -base64 32
+AUTH_SECRET="tu_secreto_random"
+AUTH_GOOGLE_ID="tu_cliente_id_google"
+AUTH_GOOGLE_SECRET="tu_cliente_secreto_google"
+
+# Seguridad (¡Importante!)
+ALLOWED_EMAIL="tu_email_real@gmail.com"
 ```
 
 ### 3. Base de Datos
-Sincroniza el esquema de Prisma con tu base de datos:
 ```bash
 npx prisma db push
 ```
 
-### 4. Iniciar Servidor
+### 4. Iniciar
 ```bash
 npm run dev
 ```
-La web estará disponible en `http://localhost:3000`.
-
-### 5. (Opcional) Activar el Bot Localmente
-Para que el bot funcione en local, necesitas exponer tu puerto 3000 a internet (usando Ngrok o similar) y configurar el Webhook de Telegram hacia esa URL.
+Visita `http://localhost:3000`. Te pedirá iniciar sesión con Google.
 
 ---
 
-## ☁️ Despliegue en Vercel (Producción)
-
-Este proyecto está optimizado para desplegarse en **Vercel**.
+## ☁️ Despliegue en Vercel
 
 1.  Sube tu código a **GitHub**.
-2.  Crea un nuevo proyecto en **Vercel** e importa tu repositorio.
-3.  En la configuración de Vercel (Environment Variables), agrega las mismas variables del `.env`.
-4.  **Base de Datos**: Vercel ofrece almacenamiento PostgreSQL (Vercel Postgres) o puedes usar Supabase/Neon. Asegúrate de actualizar `DATABASE_URL`.
+2.  Importa el repo en **Vercel**.
+3.  Configura las **Variables de Entorno** (las mismas del `.env`).
+4.  **Configura Google OAuth**:
+    *   En Google Cloud Console, crea credenciales OAuth.
+    *   **Orígenes JS**: `https://tu-proyecto.vercel.app`
+    *   **Redirección**: `https://tu-proyecto.vercel.app/api/auth/callback/google`
 5.  ¡Despliega!
 
-### Configurar el Webhook del Bot (Post-Despliegue)
-Una vez que tu sitio esté en línea (ej: `https://contador-personal.vercel.app`), debes decirle a Telegram que envíe los mensajes ahí.
-
-Ejecuta este comando en tu navegador o terminal:
+### Configurar Webhook de Telegram
+Para que el bot funcione, ejecuta esto en tu navegador:
 ```
-https://api.telegram.org/bot<TU_TOKEN>/setWebhook?url=https://contador-personal.vercel.app/api/telegram-webhook
+https://api.telegram.org/bot<TU_TOKEN>/setWebhook?url=https://<TU_DOMINIO_VERCEL>/api/telegram-webhook
 ```
-*(Reemplaza `<TU_TOKEN>` por tu token real)*
 
-¡Listo! Tu bot ahora procesará las imágenes en la nube.
+---
+
+## 🤖 Uso del Bot
+
+### Enviar Imagen
+Simplemente envía una foto de un comprobante. El bot te responderá paso a paso.
+
+### Comandos de Texto
+*   `/pago [monto] [nombre]`: Registra un pago manual.
+    *   Ej: `/pago 10000 Rodrigo`
+*   `/deuda [monto] [nombre]`: Crea una nueva deuda.
+    *   Ej: `/deuda 50000 Monica`
+*   `/help`: Muestra la ayuda.
