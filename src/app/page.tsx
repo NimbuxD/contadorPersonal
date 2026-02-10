@@ -152,7 +152,7 @@ export default async function Home() {
                                     <th className="px-6 py-4">Destinatario</th>
                                     <th className="px-6 py-4">Banco</th>
                                     <th className="px-6 py-4">Monto</th>
-                                    <th className="px-6 py-4">Estado</th>
+                                    <th className="px-6 py-4">Monto</th>
                                     <th className="px-6 py-4">Código</th>
                                 </tr>
                             </thead>
@@ -177,16 +177,6 @@ export default async function Home() {
                                             <td className="px-6 py-4">{t.bank}</td>
                                             <td className="px-6 py-4 font-mono font-medium text-gray-900">
                                                 ${t.amount.toLocaleString()}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span
-                                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${t.status === "PAID"
-                                                        ? "bg-green-100 text-green-800"
-                                                        : "bg-yellow-100 text-yellow-800"
-                                                        }`}
-                                                >
-                                                    {t.status === "PAID" ? "PAGADO" : "PENDIENTE"}
-                                                </span>
                                             </td>
                                             <td className="px-6 py-4 font-mono text-xs text-gray-400">
                                                 {t.transactionCode}
