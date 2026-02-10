@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { format } from "date-fns";
-import { createDebt, deleteDebt } from "./actions";
+import { createDebt, deleteDebt, createTransaction } from "./actions";
 import { DebtCard } from "@/components/DebtCard";
 
 export const revalidate = 0;
@@ -75,6 +75,28 @@ export default async function Home() {
                     </form>
                 </section>
 
+                {/* Manual Transaction Form */}
+                <section className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h2 className="text-lg font-semibold text-gray-800 mb-4">Registrar Pago Manual</h2>
+                    <form action={createTransaction} className="flex flex-wrap gap-4 items-end">
+                        <div className="flex flex-col gap-1 flex-grow">
+                            <label className="text-xs text-gray-500">Destinatario (Nombre)</label>
+                            <input name="recipient" required placeholder="Ej: Rodrigo" className="border rounded p-2 text-sm w-full" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs text-gray-500">Monto</label>
+                            <input name="amount" type="number" required placeholder="50000" className="border rounded p-2 text-sm" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs text-gray-500">Fecha (Opcional)</label>
+                            <input name="date" type="date" className="border rounded p-2 text-sm" />
+                        </div>
+                        <button type="submit" className="bg-black text-white px-4 py-2 rounded text-sm font-medium hover:bg-gray-800">
+                            Registrar
+                        </button>
+                    </form>
+                </section>
+
                 {/* Global Summary */}
                 <section>
                     <h2 className="text-xl font-semibold text-gray-800 mb-4">Resumen General</h2>
@@ -109,32 +131,7 @@ export default async function Home() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {debtsWithStats.map((debtor) => (
-                                <div key={debtor.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 relative group">
-                                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <form action={deleteDebt.bind(null, debtor.id)}>
-                                            <button className="text-red-500 text-xs hover:underline">Eliminar</button>
-                                        </form>
-                                    </div>
-                                    <h3 className="text-lg font-bold text-gray-900">{debtor.name}</h3>
-                                    <p className="text-xs text-gray-400 mb-4">Keywords: {debtor.keywords}</p>
-
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-gray-500">Deuda Inicial:</span>
-                                            <span className="font-medium">${debtor.totalAmount.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-gray-500">Pagado:</span>
-                                            <span className="font-medium text-green-600">${debtor.paid.toLocaleString()}</span>
-                                        </div>
-                                        <div className="pt-2 border-t border-gray-100 flex justify-between items-end">
-                                            <span className="text-sm text-gray-500">Pendiente:</span>
-                                            <span className="text-2xl font-bold text-red-600">
-                                                ${debtor.pending.toLocaleString()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
+                                <DebtCard key={debtor.id} debt={debtor} />
                             ))}
                         </div>
                     )}

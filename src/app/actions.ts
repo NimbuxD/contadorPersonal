@@ -51,3 +51,29 @@ export async function updateDebt(formData: FormData) {
 
   revalidatePath("/");
 }
+export async function createTransaction(formData: FormData) {
+  const recipient = formData.get("recipient") as string;
+  const amount = parseFloat(formData.get("amount") as string);
+  const dateStr = formData.get("date") as string;
+  const date = dateStr ? new Date(dateStr) : new Date();
+
+  if (!recipient || !amount) {
+    throw new Error("Missing required fields");
+  }
+
+  await prisma.transaction.create({
+    data: {
+      recipient,
+      amount,
+      date,
+      time: date.toLocaleTimeString(),
+      transactionCode: `MANUAL-${Math.random().toString(36).substring(7).toUpperCase()}`,
+      status: "PAID",
+      bank: "MANUAL",
+      accountType: "MANUAL",
+      accountNumber: "MANUAL",
+    },
+  });
+
+  revalidatePath("/");
+}
