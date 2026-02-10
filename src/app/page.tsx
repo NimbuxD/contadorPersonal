@@ -1,34 +1,22 @@
 import { prisma } from "@/lib/db";
 import { format } from "date-fns";
+import { createDebt, deleteDebt } from "./actions";
 
-export const revalidate = 0; // Disable cache for real-time updates
+export const revalidate = 0;
 
-const DEBTS = [
-    {
-        id: "rodrigo",
-        name: "Rodrigo Illanes (Hermano)",
-        initialDebt: 2198444,
-        keywords: ["rodrigo", "illanes", "hermano"],
-    },
-    {
-        id: "monica",
-        name: "Mónica Lagos (Mamá)",
-        initialDebt: 200000,
-        keywords: ["monica", "mónica", "lagos", "mama", "mamá"],
-    },
-];
+function getDebtorStats(transactions: any[], debtorKeywords: string, initialDebt: number) {
+    const keywords = debtorKeywords.split(",").map(k => k.trim().toLowerCase());
 
-function getDebtorStats(transactions: any[], debtor: typeof DEBTS[0]) {
     const paidAmount = transactions
         .filter((t) => {
             const recipient = t.recipient.toLowerCase();
-            return debtor.keywords.some((k) => recipient.includes(k));
+            return keywords.some((k) => k && recipient.includes(k));
         })
         .reduce((acc, curr) => acc + curr.amount, 0);
 
     return {
         paid: paidAmount,
-        pending: debtor.initialDebt - paidAmount,
+        pending: initialDebt - paidAmount,
     };
 }
 
@@ -37,14 +25,18 @@ export default async function Home() {
         orderBy: { createdAt: "desc" },
     });
 
+    const debts = await prisma.debt.findMany({
+        orderBy: { createdAt: "asc" }
+    });
+
     // Calculate Global Totals (Only for identified debts)
     let globalTotalDebt = 0;
     let globalPaid = 0;
     let globalPending = 0;
 
-    const debtsWithStats = DEBTS.map((debtor) => {
-        const stats = getDebtorStats(transactions, debtor);
-        globalTotalDebt += debtor.initialDebt;
+    const debtsWithStats = debts.map((debtor) => {
+        const stats = getDebtorStats(transactions, debtor.keywords, debtor.totalAmount);
+        globalTotalDebt += debtor.totalAmount;
         globalPaid += stats.paid;
         globalPending += stats.pending;
         return { ...debtor, ...stats };
@@ -59,6 +51,28 @@ export default async function Home() {
                         {format(new Date(), "PPpp")}
                     </div>
                 </header>
+
+                {/* Add Debt Form */}
+                <section className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h2 className="text-lg font-semibold text-gray-800 mb-4">Agregar Nueva Deuda</h2>
+                    <form action={createDebt} className="flex flex-wrap gap-4 items-end">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs text-gray-500">Nombre</label>
+                            <input name="name" required placeholder="Ej: Rodrigo" className="border rounded p-2 text-sm" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs text-gray-500">Monto Total</label>
+                            <input name="amount" type="number" required placeholder="200000" className="border rounded p-2 text-sm" />
+                        </div>
+                        <div className="flex flex-col gap-1 flex-grow">
+                            <label className="text-xs text-gray-500">Palabras Clave (separadas por coma)</label>
+                            <input name="keywords" required placeholder="rodrigo, hermano, illanes" className="border rounded p-2 text-sm w-full" />
+                        </div>
+                        <button type="submit" className="bg-black text-white px-4 py-2 rounded text-sm font-medium hover:bg-gray-800">
+                            Guardar
+                        </button>
+                    </form>
+                </section>
 
                 {/* Global Summary */}
                 <section>
@@ -88,29 +102,41 @@ export default async function Home() {
                 {/* Individual Debts */}
                 <section>
                     <h2 className="text-xl font-semibold text-gray-800 mb-4">Detalle por Persona</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {debtsWithStats.map((debtor) => (
-                            <div key={debtor.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                                <h3 className="text-lg font-bold text-gray-900">{debtor.name}</h3>
-                                <div className="mt-4 space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500">Deuda Inicial:</span>
-                                        <span className="font-medium">${debtor.initialDebt.toLocaleString()}</span>
+
+                    {debtsWithStats.length === 0 ? (
+                        <p className="text-gray-500 text-sm">No hay deudas registradas.</p>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {debtsWithStats.map((debtor) => (
+                                <div key={debtor.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 relative group">
+                                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <form action={deleteDebt.bind(null, debtor.id)}>
+                                            <button className="text-red-500 text-xs hover:underline">Eliminar</button>
+                                        </form>
                                     </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500">Pagado:</span>
-                                        <span className="font-medium text-green-600">${debtor.paid.toLocaleString()}</span>
-                                    </div>
-                                    <div className="pt-2 border-t border-gray-100 flex justify-between items-end">
-                                        <span className="text-sm text-gray-500">Pendiente:</span>
-                                        <span className="text-2xl font-bold text-red-600">
-                                            ${debtor.pending.toLocaleString()}
-                                        </span>
+                                    <h3 className="text-lg font-bold text-gray-900">{debtor.name}</h3>
+                                    <p className="text-xs text-gray-400 mb-4">Keywords: {debtor.keywords}</p>
+
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Deuda Inicial:</span>
+                                            <span className="font-medium">${debtor.totalAmount.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Pagado:</span>
+                                            <span className="font-medium text-green-600">${debtor.paid.toLocaleString()}</span>
+                                        </div>
+                                        <div className="pt-2 border-t border-gray-100 flex justify-between items-end">
+                                            <span className="text-sm text-gray-500">Pendiente:</span>
+                                            <span className="text-2xl font-bold text-red-600">
+                                                ${debtor.pending.toLocaleString()}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </section>
 
                 {/* Recent Transactions */}
