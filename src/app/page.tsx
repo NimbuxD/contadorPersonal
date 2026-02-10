@@ -152,7 +152,6 @@ export default async function Home() {
                                     <th className="px-6 py-4">Destinatario</th>
                                     <th className="px-6 py-4">Banco</th>
                                     <th className="px-6 py-4">Monto</th>
-                                    <th className="px-6 py-4">Monto</th>
                                     <th className="px-6 py-4">Código</th>
                                 </tr>
                             </thead>
