@@ -39,7 +39,7 @@ async function downloadFileAsBase64(fileId: string): Promise<string | null> {
 
 export async function POST(req: Request) {
   if (!TELEGRAM_TOKEN) {
-    return NextResponse.json({ error: "Token not configured" }, { status: 500 });
+    return NextResponse.json({ error: "Token not configured" }, { status: 200 }); // Return 200 to stop retries
   }
 
   try {
@@ -52,32 +52,39 @@ export async function POST(req: Request) {
 
     // Handle Photos
     if (update.message.photo) {
-      await sendMessage(chatId, "Procesando imagen (Webhook)...");
+      // 1. Acknowledge receipt
+      await sendMessage(chatId, "📸 Imagen recibida. Descargando...");
 
       // Get largest photo
       const photo = update.message.photo[update.message.photo.length - 1];
       const base64Image = await downloadFileAsBase64(photo.file_id);
 
       if (!base64Image) {
-        await sendMessage(chatId, "Error al descargar la imagen.");
+        await sendMessage(chatId, "❌ Error: No se pudo descargar la imagen.");
         return NextResponse.json({ ok: true });
       }
+
+      // 2. Notify AI processing
+      await sendMessage(chatId, "🤖 Analizando con IA (esto puede tardar unos segundos)...");
 
       // Analyze
       const data = await parseTransactionImage(base64Image);
 
       if (!data) {
-        await sendMessage(chatId, "No se pudo analizar la transacción.");
+        await sendMessage(chatId, "⚠️ La IA no pudo entender la imagen. Intenta con una más clara.");
         return NextResponse.json({ ok: true });
       }
+
+      // 3. Notify Saving
+      await sendMessage(chatId, "💾 Datos extraídos. Guardando en base de datos...");
 
       // Save to DB
       const transaction = await prisma.transaction.create({
         data: {
-          recipient: data.recipient || "Unknown",
-          bank: data.bank || "Unknown",
-          accountType: data.accountType || "Unknown",
-          accountNumber: data.accountNumber || "Unknown",
+          recipient: data.recipient || "Desconocido",
+          bank: data.bank || "Desconocido",
+          accountType: data.accountType || "Desconocido",
+          accountNumber: data.accountNumber || "Desconocido",
           date: data.date ? new Date(data.date) : new Date(),
           time: data.time || "00:00",
           transactionCode: data.transactionCode || "UNKNOWN-" + Date.now(),
@@ -88,15 +95,17 @@ export async function POST(req: Request) {
 
       await sendMessage(
         chatId,
-        `¡Guardado!\nID: ${transaction.id}\nMonto: ${transaction.amount}`
+        `✅ ¡Listo!\n\n💰 Monto: $${transaction.amount.toLocaleString()}\n👤 Destino: ${transaction.recipient}\n🏦 Banco: ${transaction.bank}\n📅 Fecha: ${transaction.date.toLocaleDateString()}`
       );
     } else {
-      await sendMessage(chatId, "Por favor envía una imagen.");
+      await sendMessage(chatId, "Envíame una foto de una transferencia para registrarla.");
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Webhook Error:", error);
-    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
+    // Important: Return 200 to stop Telegram from retrying endlessly
+    // But try to notify user if possible (we might not have chatId if parsing failed)
+    return NextResponse.json({ ok: true });
   }
 }
