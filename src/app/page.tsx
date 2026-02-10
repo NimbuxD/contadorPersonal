@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { format } from "date-fns";
 import { createDebt, deleteDebt, createTransaction } from "./actions";
 import { DebtCard } from "@/components/DebtCard";
+import { auth, signOut } from "@/auth";
 
 export const revalidate = 0;
 
@@ -22,6 +23,8 @@ function getDebtorStats(transactions: any[], debtorKeywords: string, initialDebt
 }
 
 export default async function Home() {
+    const session = await auth();
+
     const transactions = await prisma.transaction.findMany({
         orderBy: { createdAt: "desc" },
     });
@@ -51,12 +54,24 @@ export default async function Home() {
         <main className="min-h-screen bg-gray-50 dark:bg-neutral-950 p-4 lg:p-8 transition-colors">
             <div className="max-w-7xl mx-auto space-y-8">
                 <header className="flex justify-between items-center pb-4 border-b border-gray-200 dark:border-neutral-800">
-                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
-                        Control de Gastos
-                    </h1>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {format(new Date(), "PPpp")}
+                    <div>
+                        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
+                            Control de Gastos
+                        </h1>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Hola, {session?.user?.name ?? "Usuario"}
+                        </p>
                     </div>
+                    <form
+                        action={async () => {
+                            "use server";
+                            await signOut();
+                        }}
+                    >
+                        <button className="text-sm text-red-500 hover:underline">
+                            Cerrar Sesión
+                        </button>
+                    </form>
                 </header>
 
                 {/* Global Summary Cards */}
