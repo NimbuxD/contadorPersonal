@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { format } from "date-fns";
 import { createDebt, deleteDebt } from "./actions";
+import { DebtCard } from "@/components/DebtCard";
 
 export const revalidate = 0;
 

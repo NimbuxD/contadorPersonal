@@ -29,3 +29,25 @@ export async function deleteDebt(id: string) {
   });
   revalidatePath("/");
 }
+
+export async function updateDebt(formData: FormData) {
+  const id = formData.get("id") as string;
+  const name = formData.get("name") as string;
+  const totalAmount = parseFloat(formData.get("amount") as string);
+  const keywords = formData.get("keywords") as string;
+
+  if (!id || !name || !totalAmount || !keywords) {
+    throw new Error("Missing required fields");
+  }
+
+  await prisma.debt.update({
+    where: { id },
+    data: {
+      name,
+      totalAmount,
+      keywords: keywords.toLowerCase(),
+    },
+  });
+
+  revalidatePath("/");
+}
