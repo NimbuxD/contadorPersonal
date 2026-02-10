@@ -52,10 +52,10 @@ export async function POST(req: Request) {
 
     // Handle Photos
     if (update.message.photo) {
+      // ... existing photo logic (kept same as before, see full file for context if needed)
       // 1. Acknowledge receipt
       await sendMessage(chatId, "📸 Imagen recibida. Descargando...");
 
-      // Get largest photo
       const photo = update.message.photo[update.message.photo.length - 1];
       const base64Image = await downloadFileAsBase64(photo.file_id);
 
@@ -64,10 +64,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // 2. Notify AI processing
       await sendMessage(chatId, "🤖 Analizando con IA (esto puede tardar unos segundos)...");
-
-      // Analyze
       const data = await parseTransactionImage(base64Image);
 
       if (!data) {
@@ -75,10 +72,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // 3. Notify Saving
       await sendMessage(chatId, "💾 Datos extraídos. Guardando en base de datos...");
-
-      // Save to DB
+      
       const transaction = await prisma.transaction.create({
         data: {
           recipient: data.recipient || "Desconocido",
@@ -97,8 +92,81 @@ export async function POST(req: Request) {
         chatId,
         `✅ ¡Listo!\n\n💰 Monto: $${transaction.amount.toLocaleString()}\n👤 Destino: ${transaction.recipient}\n🏦 Banco: ${transaction.bank}\n📅 Fecha: ${transaction.date.toLocaleDateString()}`
       );
+
+    } else if (update.message.text) {
+        const text = update.message.text.trim();
+        const parts = text.split(" ");
+        const command = parts[0].toLowerCase();
+
+        if (command === "/pago") {
+            // Format: /pago [amount] [recipient]
+            if (parts.length < 3) {
+                await sendMessage(chatId, "⚠️ Uso incorrecto.\nEjemplo: /pago 5000 Rodrigo");
+                return NextResponse.json({ ok: true });
+            }
+
+            const amount = parseFloat(parts[1]);
+            const recipient = parts.slice(2).join(" ");
+
+            if (isNaN(amount)) {
+                await sendMessage(chatId, "⚠️ El monto debe ser un número válido.");
+                return NextResponse.json({ ok: true });
+            }
+
+            const transaction = await prisma.transaction.create({
+                data: {
+                    recipient: recipient,
+                    amount: amount,
+                    date: new Date(),
+                    time: new Date().toLocaleTimeString(),
+                    transactionCode: `CMD-${Math.random().toString(36).substring(7).toUpperCase()}`,
+                    status: "PAID", // Manual payments are usually paid
+                    bank: "MANUAL",
+                    accountType: "MANUAL",
+                    accountNumber: "MANUAL",
+                },
+            });
+
+            await sendMessage(chatId, `✅ Pago registrado manualmente.\n\n👤: ${recipient}\n💰: $${amount.toLocaleString()}`);
+
+        } else if (command === "/deuda") {
+             // Format: /deuda [amount] [name]
+             if (parts.length < 3) {
+                await sendMessage(chatId, "⚠️ Uso incorrecto.\nEjemplo: /deuda 20000 Monica");
+                return NextResponse.json({ ok: true });
+            }
+
+            const amount = parseFloat(parts[1]);
+            const name = parts.slice(2).join(" ");
+
+            if (isNaN(amount)) {
+                await sendMessage(chatId, "⚠️ El monto debe ser un número válido.");
+                return NextResponse.json({ ok: true });
+            }
+
+            // Create debt
+            await prisma.debt.create({
+                data: {
+                    name: name,
+                    totalAmount: amount,
+                    keywords: name.toLowerCase(), // Simple default keyword
+                }
+            });
+
+            await sendMessage(chatId, `✅ Deuda de ${name} agregada por $${amount.toLocaleString()}.`);
+
+        } else if (command === "/help" || command === "/ayuda") {
+            await sendMessage(chatId, 
+                `🤖 **Comandos Disponibles**:\n\n` +
+                `📸 *Enviar Foto*: Procesa comprobante automáticamente.\n\n` +
+                `💸 */pago [monto] [nombre]*:\nRegistra un pago manual.\nEj: /pago 5000 Rodrigo\n\n` +
+                `📉 */deuda [monto] [nombre]*:\nCrea una nueva deuda.\nEj: /deuda 20000 Monica\n`
+            );
+        } else {
+            await sendMessage(chatId, "No entiendo ese comando. Usa /help para ver las opciones o envíame una foto.");
+        }
     } else {
-      await sendMessage(chatId, "Envíame una foto de una transferencia para registrarla.");
+      await sendMessage(chatId, "Por favor envía una imagen o usa un comando de texto.");
     }
 
     return NextResponse.json({ ok: true });
